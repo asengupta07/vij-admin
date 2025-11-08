@@ -1,36 +1,132 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# VIJ Admin — Open-source error monitoring for JavaScript apps
 
-## Getting Started
+Self-hosted admin panel for collecting, grouping, and analyzing errors and logs from your frontend or backend using the lightweight `vij-sdk`. Built with Next.js (App Router) and MongoDB.
 
-First, run the development server:
+### What you get
+- Real‑time dashboard with trends and breakdowns (severity, environment, origin)
+- Log search, filtering, pagination, and details with stack preview
+- Automatic error grouping with fingerprints
+- Optional AI‑assisted summaries and suggested causes/fixes (Gemini)
+- Simple REST API with permissive CORS for easy ingestion
 
+---
+
+## Quick start (self‑host)
+
+### Prerequisites
+- Node.js 18+ (or Bun), npm/yarn/pnpm
+- MongoDB 6+ (local or Atlas)
+
+### 1) Configure environment
+Set the required environment variables before running the server.
+
+| Name | Required | Example | Purpose |
+| --- | --- | --- | --- |
+| `MONGODB_URI` | Yes | `mongodb://localhost:27017/vij` | Database connection string |
+| `NEXT_PUBLIC_BASE_URL` | Recommended in prod | `https://vij.example.com` | Used by server components to form absolute API URLs |
+| `GEMINI_API_KEY` | Optional | `ya29...` | Enables AI summaries in the UI and API |
+
+Examples (macOS/Linux):
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+export MONGODB_URI="mongodb://localhost:27017/vij"
+# Optional:
+export NEXT_PUBLIC_BASE_URL="http://localhost:3000" # In dev environment
+export GEMINI_API_KEY="YOUR_KEY"
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2) Install and run
+From this folder:
+```bash
+# pick your package manager
+npm install
+npm run dev
+# or: yarn && yarn dev
+# or: pnpm install && pnpm dev
+# or: bun install && bun dev
+```
+Open `http://localhost:3000` to access the admin.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 3) Send your first logs with vij‑sdk
+Install the SDK in your app ([vij‑sdk on npm](https://www.npmjs.com/package/vij-sdk)) and point it to this server’s `/api/logs` endpoint.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```ts
+import { init, captureException, captureMessage, flush } from "vij-sdk";
 
-## Learn More
+init({
+  endpoint: "http://localhost:3000/api/logs",
+  appId: "demo-app",
+  environment: "development", // or "production"
+  batch: true,
+  flushIntervalMs: 3000,
+  maxBatchSize: 20
+});
 
-To learn more about Next.js, take a look at the following resources:
+try {
+  throw new Error("Simulated crash in signup flow");
+} catch (err) {
+  captureException(err, { feature: "signup" });
+}
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+captureMessage("User clicked retry", { feature: "signup" }, "info");
+await flush();
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+You should see events appear in the dashboard immediately.
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Deploy
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Any Node host works. For production:
+1. Build the app: `npm run build`
+2. Ensure envs are set (`MONGODB_URI` required; set `NEXT_PUBLIC_BASE_URL` to your public URL)
+3. Start: `npm run start`
+
+On platforms like Vercel, set the same envs in the project settings. AI summaries require `GEMINI_API_KEY` and will gracefully disable if not set.
+
+---
+
+## REST API
+
+- `POST /api/logs` — accepts a single log or a batch
+  - Single log shape:
+    - `appId` (string, required)
+    - `message` (string, required)
+    - `stack` (string, optional)
+    - `timestamp` (ISO string, optional)
+    - `metadata` (object, optional)
+    - `severity` (`error` | `warning` | `info`, default `error`)
+    - `environment` (`production` | `development`, default `production`)
+    - `userAgent` (string, optional)
+  - Batch shape:
+    - `{ "batch": true, "logs": [<single log> ...] }`
+  - Limits: 10KB body, CORS `*`, methods `POST, OPTIONS, GET`
+
+- `GET /api/logs` — list/search logs
+  - Query: `page`, `limit`, `appId`, `severity`, `environment`, `search`, `from`, `to`, `fingerprint`, `origin`
+
+- `GET /api/stats` — aggregates for the dashboard
+
+- `GET /api/groups` — grouped errors
+  - Query: `page`, `limit`, `appId`, `severity`, `environment`
+
+---
+
+## How it works
+- Ingestion: `/api/logs` validates payloads, fingerprints errors, and writes to MongoDB
+- Grouping: errors with same `(message, stack)` hash form a group
+- AI: when `GEMINI_API_KEY` is set, the service fetches a concise summary, suggested causes/fixes, and tags (cached per group)
+- UI: Next.js App Router renders a dashboard, charts, groups, and log details
+
+---
+
+## Troubleshooting
+- Connection error: verify `MONGODB_URI` and that MongoDB is reachable
+- Empty dashboard: send test events with `vij-sdk` and check `/api/logs` for responses
+- Mixed local/prod URLs: set `NEXT_PUBLIC_BASE_URL` in production to your public origin
+- AI not showing: ensure `GEMINI_API_KEY` is set; otherwise AI features are disabled gracefully
+
+---
+
+## License
+MIT
