@@ -6,6 +6,7 @@ import { summarizeErrorStructured } from "@/lib/ai";
 import crypto from "node:crypto";
 import { ErrorGroupModel } from "@/models/ErrorGroup";
 import { AiCacheModel } from "@/models/AiCache";
+import { broadcastLogs } from "@/lib/ws";
 
 const severityEnum = z.enum(["error", "warning", "info"]);
 const envEnum = z.enum(["production", "development"]);
@@ -87,7 +88,10 @@ export async function POST(req: NextRequest) {
           };
         })
       );
-      await LogModel.insertMany(docs, { ordered: false });
+      const inserted = await LogModel.insertMany(docs, { ordered: false });
+      try {
+        broadcastLogs(inserted.map((d: any) => (typeof d.toObject === "function" ? d.toObject() : d)));
+      } catch {}
     } else {
       const l = body as SingleLog;
       let ai_summary: string | null = null;
@@ -115,7 +119,7 @@ export async function POST(req: NextRequest) {
       } catch {
         ai_summary = null;
       }
-      await LogModel.create({
+      const created = await LogModel.create({
         appId: l.appId,
         message: l.message,
         stack: l.stack,
@@ -129,6 +133,9 @@ export async function POST(req: NextRequest) {
         fingerprint: fp,
         tags: Array.isArray((l as any).tags) ? (l as any).tags : Array.isArray(l.metadata?.tags) ? (l.metadata?.tags as string[]) : undefined
       });
+      try {
+        broadcastLogs(typeof (created as any).toObject === "function" ? (created as any).toObject() : created);
+      } catch {}
     }
     return NextResponse.json({ ok: true }, { headers: corsHeaders });
   } catch (e) {
@@ -153,7 +160,9 @@ export async function GET(req: NextRequest) {
   const to = searchParams.get("to") ? new Date(String(searchParams.get("to"))) : undefined;
 
   const query: Record<string, any> = {};
-  if (appId) query.appId = appId;
+  if (appId) {
+    query.appId = { $regex: escapeRegex(appId), $options: "i" };
+  }
   if (severity) query.severity = severity;
   if (environment) query.environment = environment;
   if (from || to) {
@@ -162,7 +171,8 @@ export async function GET(req: NextRequest) {
     if (to) query.timestamp.$lte = to;
   }
   if (search) {
-    query.$text = { $search: search };
+    const rx = { $regex: escapeRegex(search), $options: "i" };
+    query.$or = [{ message: rx }, { stack: rx }];
   }
   if (fingerprint) query.fingerprint = fingerprint;
   if (origin) {
@@ -217,5 +227,9 @@ async function upsertGroup(
     upsert: true
   }).lean();
   return res;
+}
+
+function escapeRegex(input: string): string {
+  return input.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 

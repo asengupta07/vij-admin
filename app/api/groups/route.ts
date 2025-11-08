@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
   const environment = searchParams.get("environment") || undefined;
 
   const query: Record<string, any> = {};
-  if (appId) query.appId = appId;
+  if (appId) query.appId = { $regex: escapeRegex(appId), $options: "i" };
   if (severity) query.severity = severity;
   if (environment) query.environment = environment;
 
@@ -26,6 +26,10 @@ export async function GET(req: NextRequest) {
     .lean();
   const hasMore = page * limit < total;
   return NextResponse.json({ data, page, limit, total, hasMore });
+}
+
+function escapeRegex(input: string): string {
+  return input.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 

@@ -47,17 +47,17 @@ function MetaPreview({ meta }: { meta?: Record<string, unknown> }) {
 function AISnippet({ text }: { text?: string }) {
   if (!text) return null;
   const short = text.length > 120 ? text.slice(0, 120) + "…" : text;
-  return <div className="mt-1 text-xs text-lime-700 dark:text-lime-300">💡 {short}</div>;
+  return <div className="mt-1 text-xs text-lime-700 dark:text-lime-300"> {short}</div>;
 }
 function Column({ title, severity }: { title: string; severity: "error" | "warning" | "info" }) {
   const items = useRecent(severity, 6);
   return (
-    <div className="rounded-lg border border-black/10 dark:border-white/10">
-      <div className="flex items-center justify-between border-b border-black/10 dark:border-white/10 px-3 py-2">
+    <div className="rounded-lg border border-black/10 dark:border-white/10 flex h-72 flex-col overflow-hidden">
+      <div className="flex items-center justify-between border-b border-black/10 dark:border-white/10 px-3 py-2 bg-zinc-50/70 dark:bg-zinc-900/40">
         <div className="text-sm font-medium">{title}</div>
         <span className={`inline-flex rounded px-2 py-0.5 text-xs ${badgeClass(severity)}`}>{severity}</span>
       </div>
-      <ul className="divide-y divide-black/10 dark:divide-white/10">
+      <ul className="divide-y divide-black/10 dark:divide-white/10 overflow-y-auto flex-1">
         {items.map((l) => {
           const t = new Date(l.timestamp);
           return (
@@ -67,7 +67,7 @@ function Column({ title, severity }: { title: string; severity: "error" | "warni
                   <Link href={`/logs/${l._id}`} className="hover:underline wrap-break-word whitespace-normal">
                     {l.message}
                   </Link>
-                  <MetaPreview meta={l.metadata} />
+                  {/* <MetaPreview meta={l.metadata} /> */}
                 </div>
                 <div className="shrink-0 text-xs text-zinc-500">{formatISTTime(t)}</div>
               </div>
@@ -89,7 +89,7 @@ function Column({ title, severity }: { title: string; severity: "error" | "warni
         })}
         {items.length === 0 && <li className="px-3 py-6 text-center text-sm text-zinc-500">No recent {severity}s</li>}
       </ul>
-      <div className="border-t border-black/10 dark:border-white/10 px-3 py-2 text-right">
+      <div className="border-t border-black/10 dark:border-white/10 px-3 py-2 text-right bg-zinc-50/70 dark:bg-zinc-900/40">
         <Link href={`/logs?severity=${severity}`} className="text-sm text-zinc-700 hover:underline dark:text-zinc-300">
           View all
         </Link>
