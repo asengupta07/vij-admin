@@ -2,6 +2,7 @@ import { TrendingUp } from "lucide-react";
 import { headers } from "next/headers";
 import RecentEvents from "@/components/RecentEvents";
 import OverviewLive from "@/components/OverviewLive";
+import SystemMetrics from "@/components/SystemMetrics";
 
 async function getBaseUrl(): Promise<string> {
   if (process.env.NEXT_PUBLIC_BASE_URL) return process.env.NEXT_PUBLIC_BASE_URL;
@@ -23,12 +24,13 @@ async function getStats() {
 export default async function Home() {
   const stats = await getStats();
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div className="flex items-center gap-3">
         <TrendingUp className="h-5 w-5" />
         <h2 className="text-xl font-semibold tracking-tight">Overview</h2>
       </div>
       <OverviewLive initial={stats} />
+      <SystemMetrics />
       <div className="space-y-3">
         <h3 className="text-sm font-medium text-zinc-600 dark:text-zinc-400">Recent events</h3>
         <RecentEvents />

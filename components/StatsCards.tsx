@@ -11,22 +11,22 @@ export default function StatsCards({ stats }: { stats: StatsResponse }) {
     number
   >;
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
-      <div className="rounded-lg border border-black/10 dark:border-white/10 p-4">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+      <div className="rounded-lg border border-black/10 dark:border-white/10 p-3">
         <div className="text-sm text-zinc-600 dark:text-zinc-400">Total events (14d)</div>
-        <div className="mt-1 text-2xl font-semibold">{total}</div>
+        <div className="mt-1 text-xl font-semibold">{total}</div>
       </div>
-      <div className="rounded-lg border border-black/10 dark:border-white/10 p-4">
+      <div className="rounded-lg border border-black/10 dark:border-white/10 p-3">
         <div className="text-sm text-zinc-600 dark:text-zinc-400">Errors</div>
-        <div className="mt-1 text-2xl font-semibold">{bySeverity.error ?? 0}</div>
+        <div className="mt-1 text-xl font-semibold">{bySeverity.error ?? 0}</div>
       </div>
-      <div className="rounded-lg border border-black/10 dark:border-white/10 p-4">
+      <div className="rounded-lg border border-black/10 dark:border-white/10 p-3">
         <div className="text-sm text-zinc-600 dark:text-zinc-400">Warnings</div>
-        <div className="mt-1 text-2xl font-semibold">{bySeverity.warning ?? 0}</div>
+        <div className="mt-1 text-xl font-semibold">{bySeverity.warning ?? 0}</div>
       </div>
-      <div className="rounded-lg border border-black/10 dark:border-white/10 p-4">
+      <div className="rounded-lg border border-black/10 dark:border-white/10 p-3">
         <div className="text-sm text-zinc-600 dark:text-zinc-400">Info</div>
-        <div className="mt-1 text-2xl font-semibold">{bySeverity.info ?? 0}</div>
+        <div className="mt-1 text-xl font-semibold">{bySeverity.info ?? 0}</div>
       </div>
     </div>
   );

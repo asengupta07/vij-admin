@@ -16,6 +16,7 @@ Self-hosted admin panel for collecting, grouping, and analyzing errors and logs 
 ### Prerequisites
 - Node.js 18+ (or Bun), npm/yarn/pnpm
 - MongoDB 6+ (local or Atlas)
+- Redis (for rate limiting and dedup windows)
 
 ### 1) Configure environment
 Set the required environment variables before running the server.
@@ -25,6 +26,9 @@ Set the required environment variables before running the server.
 | `MONGODB_URI` | Yes | `mongodb://localhost:27017/vij` | Database connection string |
 | `NEXT_PUBLIC_BASE_URL` | Recommended in prod | `https://vij.example.com` | Used by server components to form absolute API URLs |
 | `GEMINI_API_KEY` | Optional | `ya29...` | Enables AI summaries in the UI and API |
+| `REDIS_URL` | Recommended | `redis://localhost:6379` | Enables rate limiting & ingestion dedup |
+| `VIJ_RATE_LIMIT_PER_MIN` | Optional | `100` | Max requests per minute per `appId` |
+| `VIJ_DEDUP_WINDOW_MS` | Optional | `5000` | Window for grouping identical errors at ingestion
 
 Examples (macOS/Linux):
 ```bash
@@ -32,6 +36,9 @@ export MONGODB_URI="mongodb://localhost:27017/vij"
 # Optional:
 export NEXT_PUBLIC_BASE_URL="http://localhost:3000" # In dev environment
 export GEMINI_API_KEY="YOUR_KEY"
+export REDIS_URL="redis://localhost:6379"
+export VIJ_RATE_LIMIT_PER_MIN="100"
+export VIJ_DEDUP_WINDOW_MS="5000"
 ```
 
 ### 2) Install and run
@@ -101,6 +108,14 @@ On platforms like Vercel, set the same envs in the project settings. AI summarie
   - Batch shape:
     - `{ "batch": true, "logs": [<single log> ...] }`
   - Limits: 10KB body, CORS `*`, methods `POST, OPTIONS, GET`
+  - Rate limiting: If `REDIS_URL` is configured, requests are limited per `appId` per minute (`VIJ_RATE_LIMIT_PER_MIN`). When exceeded, the API responds `429` with headers:
+    - `x-vij-backoff`: seconds to back off (e.g., `10`)
+    - `Retry-After`: same as above for generic clients
+  - Deduplication: With Redis enabled, identical errors (same fingerprint of `message|stack`) are collapsed within `VIJ_DEDUP_WINDOW_MS`. The server:
+    - Always increments the error group's `occurrenceCount` and updates `lastSeen`
+    - Inserts at most one `Log` document per dedup window (sampling)
+    - Returns headers on success when dedup/sampling occurred:
+      - `x-vij-dedup: 1`, `x-vij-sampled: 1`
 
 - `GET /api/logs` — list/search logs
   - Query: `page`, `limit`, `appId`, `severity`, `environment`, `search`, `from`, `to`, `fingerprint`, `origin`
@@ -114,7 +129,9 @@ On platforms like Vercel, set the same envs in the project settings. AI summarie
 
 ## How it works
 - Ingestion: `/api/logs` validates payloads, fingerprints errors, and writes to MongoDB
-- Grouping: errors with same `(message, stack)` hash form a group
+- Grouping: errors with same `(message, stack)` hash form a group with an `occurrenceCount` counter
+- Rate limiting: implemented via Redis counters per minute, returning `429` with server‑driven backoff headers
+- Server‑side dedup: Redis keys collapse identical errors within a sliding window; only one sampled log is stored while the group counter increments
 - AI: when `GEMINI_API_KEY` is set, the service fetches a concise summary, suggested causes/fixes, and tags (cached per group)
 - UI: Next.js App Router renders a dashboard, charts, groups, and log details
 

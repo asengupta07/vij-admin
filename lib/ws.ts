@@ -1,5 +1,3 @@
-// Minimal, process-wide WebSocket server to broadcast new logs to dashboards.
-// Starts once per process; safe to import from any server code path.
 import type { IncomingMessage } from "node:http";
 
 type WSLike = {
@@ -13,7 +11,6 @@ type Subscriber = {
 	appId?: string;
 };
 
-// Reuse across Next.js dev hot-reloads
 type GlobalWsState = {
 	started: boolean;
 	subscribers: Set<Subscriber>;
@@ -25,7 +22,6 @@ if (!g.__vijWsState) {
 }
 const state = g.__vijWsState as GlobalWsState;
 
-// Lazy import to keep edge/client bundles clean
 function getWSServer() {
 	// eslint-disable-next-line @typescript-eslint/no-var-requires
 	const WebSocket = require("ws");

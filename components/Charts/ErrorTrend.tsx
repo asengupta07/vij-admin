@@ -17,12 +17,12 @@ export default function ErrorTrend({ data }: { data: Point[] }) {
     return { date: date.toISOString().slice(0, 10), count: p.count };
   });
   return (
-    <div className="h-64 w-full">
+    <div className="h-48 w-full">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={formatted}>
           <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.2} />
-          <XAxis dataKey="date" tickMargin={8} />
-          <YAxis allowDecimals={false} width={40} />
+          <XAxis dataKey="date" tickMargin={6} />
+          <YAxis allowDecimals={false} width={36} />
           <Tooltip />
           <Line type="monotone" dataKey="count" stroke="#ef4444" strokeWidth={2} dot={false} />
         </LineChart>
